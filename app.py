@@ -700,7 +700,8 @@ def main():
         </style>
     """, unsafe_allow_html=True)
 
-    
+    #print("✅ Updated version deployed")
+
 
     # Initialize authentication state
     ensure_auth_state()
