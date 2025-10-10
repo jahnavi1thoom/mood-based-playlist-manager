@@ -1,59 +1,32 @@
-from database import supabase
-from typing import Optional, List, Dict
+from supabase import create_client
+import os
+from dotenv import load_dotenv
+from datetime import datetime
+
+load_dotenv()
+supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 
 class SongDAO:
-    TABLE = "songs"
-
-    def create_song(self, title: str, duration: Optional[int] = None) -> Optional[Dict]:
-        song_data = {
+    def create_song(self, title, duration):
+        return supabase.table("songs").insert({
             "title": title,
-        }
-        if duration is not None:
-            song_data["duration"] = duration
-        response = supabase.table(self.TABLE).insert(song_data).execute()
-        if response.data:
-            return response.data[0]
-        else:
-            print("Failed to create song.")
-            return None
+            "duration": duration,
+            "created_at": datetime.now().isoformat()
+        }).execute()
 
-    def get_song_by_id(self, song_id: str) -> Optional[Dict]:
-        response = supabase.table(self.TABLE).select("*").eq("song_id", song_id).execute()
-        if response.data:
-            return response.data[0]
-        else:
-            print("Song not found.")
-            return None
+    def list_songs(self):
+        res = supabase.table("songs").select("*").execute()
+        return res.data if res and res.data else []
 
-    def update_song(self, song_id: str, title: Optional[str] = None, duration: Optional[int] = None) -> bool:
-        update_data = {}
-        if title is not None:
-            update_data["title"] = title
-        if duration is not None:
-            update_data["duration"] = duration
+    def list_songs_for_user(self, user_id):
+        res = supabase.table("songs").select("*").execute()
+        return res.data if res and res.data else []
 
-        if not update_data:
-            print("No fields to update.")
-            return False
+    def update_song(self, song_id, title=None, duration=None):
+        data = {}
+        if title: data["title"] = title
+        if duration: data["duration"] = duration
+        return supabase.table("songs").update(data).eq("song_id", song_id).execute()
 
-        response = supabase.table(self.TABLE).update(update_data).eq("song_id", song_id).execute()
-        if response.data:
-            return True
-        else:
-            print("Failed to update song.")
-            return False
-
-    def delete_song(self, song_id: str) -> bool:
-        response = supabase.table(self.TABLE).delete().eq("song_id", song_id).execute()
-        if response.data:
-            return True
-        else:
-            print("Failed to delete song.")
-            return False
-
-    def list_songs(self) -> List[Dict]:
-        response = supabase.table(self.TABLE).select("*").execute()
-        if response.data:
-            return response.data
-        else:
-            return []
+    def delete_song(self, song_id):
+        return supabase.table("songs").delete().eq("song_id", song_id).execute()

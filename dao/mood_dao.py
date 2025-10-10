@@ -1,60 +1,69 @@
-from database import supabase
-from typing import Optional, List, Dict
-import datetime
+from supabase import create_client
+import os
+from dotenv import load_dotenv
+from datetime import datetime, timezone
+
+load_dotenv()
+supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 
 class MoodDAO:
-    TABLE = "moods"
-
-    def create_mood(self, mood_name: str, description: str = "") -> Optional[Dict]:
-        mood_data = {
-            "mood_name": mood_name,
-            "description": description,
-            "created_at": datetime.datetime.utcnow().isoformat()
-        }
-        response = supabase.table(self.TABLE).insert(mood_data).execute()
-        if response.data:
-            return response.data[0]
-        else:
-            print("Error creating mood:", getattr(response, 'error', 'Unknown error'))
+    def create_mood(self, user_id, mood_name, description=""):
+        """Insert a new mood for a specific user."""
+        try:
+            res = supabase.table("moods").insert({
+                "user_id": user_id,
+                "mood_name": mood_name,
+                "description": description,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }).execute()
+            return res.data[0] if res.data else None
+        except Exception as e:
+            print(f"❌ Error creating mood: {e}")
             return None
 
-    def get_mood_by_id(self, mood_id: str) -> Optional[Dict]:
-        response = supabase.table(self.TABLE).select("*").eq("mood_id", mood_id).execute()
-        if response.data:
-            return response.data[0]
-        else:
-            print("Mood not found.")
-            return None
-
-    def update_mood(self, mood_id: str, mood_name: Optional[str] = None, description: Optional[str] = None) -> bool:
-        update_data = {}
-        if mood_name is not None:
-            update_data["mood_name"] = mood_name
-        if description is not None:
-            update_data["description"] = description
-
-        if not update_data:
-            print("No update fields provided.")
-            return False
-
-        response = supabase.table(self.TABLE).update(update_data).eq("mood_id", mood_id).execute()
-        if response.data:
-            return True
-        else:
-            print("Failed to update mood.")
-            return False
-
-    def delete_mood(self, mood_id: str) -> bool:
-        response = supabase.table(self.TABLE).delete().eq("mood_id", mood_id).execute()
-        if response.data:
-            return True
-        else:
-            print("Failed to delete mood.")
-            return False
-
-    def list_moods(self) -> List[Dict]:
-        response = supabase.table(self.TABLE).select("*").execute()
-        if response.data:
-            return response.data
-        else:
+    def list_moods(self):
+        """Fetch all moods."""
+        try:
+            res = supabase.table("moods").select("mood_id, mood_name, description, created_at").execute()
+            return res.data if res.data else []
+        except Exception as e:
+            print(f"❌ Error listing moods: {e}")
             return []
+
+    def get_moods_by_user(self, user_id):
+        """Fetch moods for a given user."""
+        try:
+            res = supabase.table("moods").select("mood_id, mood_name, description, created_at").eq("user_id", user_id).execute()
+            return res.data if res.data else []
+        except Exception as e:
+            print("⚠️ get_moods_by_user() fallback (no user_id):", e)
+            # fallback: return all moods if filtering fails
+            try:
+                res = supabase.table("moods").select("mood_id, mood_name, description, created_at").execute()
+                return res.data if res.data else []
+            except Exception as e2:
+                print(f"❌ Fallback also failed: {e2}")
+                return []
+
+    def update_mood(self, mood_id, user_id, mood_name=None, description=None):
+        """Update mood name or description."""
+        data = {}
+        if mood_name:
+            data["mood_name"] = mood_name
+        if description:
+            data["description"] = description
+        try:
+            res = supabase.table("moods").update(data).eq("mood_id", mood_id).eq("user_id", user_id).execute()
+            return res.data if res.data else None
+        except Exception as e:
+            print(f"❌ Error updating mood: {e}")
+            return None
+
+    def delete_mood(self, mood_id, user_id):
+        """Delete a mood by mood_id."""
+        try:
+            res = supabase.table("moods").delete().eq("mood_id", mood_id).eq("user_id", user_id).execute()
+            return res.data if res.data else None
+        except Exception as e:
+            print(f"❌ Error deleting mood: {e}")
+            return None

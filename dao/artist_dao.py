@@ -1,60 +1,29 @@
-from database import supabase
-from typing import Optional, List, Dict
+from supabase import create_client
+import os
+from dotenv import load_dotenv
+from datetime import datetime
+
+load_dotenv()
+supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 
 class ArtistDAO:
-    TABLE = "artists"
-
-    def create_artist(self, name: str, description: Optional[str] = None) -> Optional[Dict]:
-        artist_data = {
+    def create_artist(self, user_id, name, description=None):
+        return supabase.table("artists").insert({
+            "user_id": user_id,
             "name": name,
-            "description": description
-        }
-        # Remove None values
-        artist_data = {k: v for k, v in artist_data.items() if v is not None}
-        response = supabase.table(self.TABLE).insert(artist_data).execute()
-        if response.data:
-            return response.data[0]
-        else:
-            print("Failed to create artist.")
-            return None
+            "description": description or "",
+            "created_at": datetime.now().isoformat()
+        }).execute()
 
-    def get_artist_by_id(self, artist_id: str) -> Optional[Dict]:
-        response = supabase.table(self.TABLE).select("*").eq("artist_id", artist_id).execute()
-        if response.data:
-            return response.data[0]
-        else:
-            print("Artist not found.")
-            return None
+    def get_artists_by_user(self, user_id):
+        res = supabase.table("artists").select("*").eq("user_id", user_id).execute()
+        return res.data if res.data else []
 
-    def update_artist(self, artist_id: str, name: Optional[str] = None, description: Optional[str] = None) -> bool:
-        update_data = {}
-        if name is not None:
-            update_data["name"] = name
-        if description is not None:
-            update_data["description"] = description
+    def update_artist(self, artist_id, user_id, name=None, description=None):
+        data = {}
+        if name: data["name"] = name
+        if description: data["description"] = description
+        return supabase.table("artists").update(data).eq("artist_id", artist_id).eq("user_id", user_id).execute()
 
-        if not update_data:
-            print("No fields to update.")
-            return False
-
-        response = supabase.table(self.TABLE).update(update_data).eq("artist_id", artist_id).execute()
-        if response.data:
-            return True
-        else:
-            print("Failed to update artist.")
-            return False
-
-    def delete_artist(self, artist_id: str) -> bool:
-        response = supabase.table(self.TABLE).delete().eq("artist_id", artist_id).execute()
-        if response.data:
-            return True
-        else:
-            print("Failed to delete artist.")
-            return False
-
-    def list_artists(self) -> List[Dict]:
-        response = supabase.table(self.TABLE).select("*").execute()
-        if response.data:
-            return response.data
-        else:
-            return []
+    def delete_artist(self, artist_id, user_id):
+        return supabase.table("artists").delete().eq("artist_id", artist_id).eq("user_id", user_id).execute()
